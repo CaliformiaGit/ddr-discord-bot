@@ -1,6 +1,7 @@
 ﻿DDR Discord bot
 
 Coding assisted by ChatGPT (sue me)
+
 Song information pulled from https://arcade-songs.zetaraku.dev/ddr/
 
 --- GOALS ---
