@@ -2,6 +2,7 @@ require("dotenv").config();
 const axios = require("axios");
 const aliases = require("./aliases");
 const fs = require("fs");
+const flareRatings = require("./flare-data");
 
 const {
     Client,
@@ -16,6 +17,10 @@ const client = new Client({
 
 client.once(Events.ClientReady, () => {
     console.log(`Logged in as ${client.user.tag}`);
+
+    client.user.setActivity("Dance Dance Revolution WORLD", {
+        type: 0
+    });
 });
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -29,7 +34,8 @@ DDR Bot Commands ⬅️ ⬇️ ⬆️ ➡️
 /chart - Searches for a specific chart video on Youtube
 /help - Shows this menu.
 /info - Fetches song title, artist, version and difficulties.
-/random - Picks a random chart, you can also filter by double/single or by level.
+/random - Picks a random chart, you can also filter by Doubles/Singles or by level range.
+/flarerating - Calculates what level charts you would need to clear with which Flare Gauge to obtain a specific rating
 `);
     }
 
@@ -60,7 +66,7 @@ const songs = response.data.songs;
 });
 
 if (!song) {
-    await interaction.reply("Song not found");
+    await interaction.reply("Song not found, please add this song with /add-alias.");
     return;
 }
 
@@ -132,7 +138,10 @@ if (interaction.commandName === "random") {
     const songs = response.data.songs;
 
     const type = interaction.options.getString("type");
-    const level = interaction.options.getInteger("level");
+    
+    const minLevel = interaction.options.getInteger("min_level");
+    
+    const maxLevel = interaction.options.getInteger("max_level");
 
     // build full chart list first
     let allCharts = [];
@@ -153,8 +162,16 @@ if (type) {
     charts = charts.filter(c => c.sheet.type === mapType);
 }
 
-if (level) {
-    charts = charts.filter(c => Number(c.sheet.level) === Number(level));
+if (minLevel !== null) {
+    charts = charts.filter(c =>
+        Number(c.sheet.level) >= minLevel
+    );
+}
+
+if (maxLevel !== null) {
+    charts = charts.filter(c =>
+        Number(c.sheet.level) <= maxLevel
+    );
 }
 
 if (charts.length === 0) {
@@ -239,12 +256,77 @@ if (interaction.commandName === "add-alias") {
     const song = interaction.options.getString("song");
     const alias = interaction.options.getString("alias");
 
-    const line = `${alias} <- ${song}\n`;
+    const line = `"${alias}": "${song}",\n`;
 
     fs.appendFileSync("user aliases.txt", line);
 
     await interaction.reply(
         `Alias submitted!\n${song} -> ${alias}`
+    );
+}
+
+if (interaction.commandName === "farm") {
+
+    const target = interaction.options.getInteger("target");
+    const average = target / 90;
+
+    const flareNames = [
+        "0","I","II","III","IV","V","VI","VII","VIII","IX","X"
+    ];
+
+    let results = [];
+
+    for (const level in flareRatings) {
+
+        let best = null;
+
+        for (const flare in flareRatings[level]) {
+
+            const value = flareRatings[level][flare];
+
+            if (value >= average) {
+
+                if (!best || value < best.value) {
+                    best = { level, flare, value };
+                }
+            }
+        }
+
+        // only include levels that can actually reach the target
+        if (best) {
+            results.push(
+                `Lv. ${best.level} Flare ${flareNames[best.flare]} (${best.value})`
+            );
+        }
+    }
+
+    if (results.length === 0) {
+        return interaction.reply("No levels can reach that target.");
+    }
+
+    await interaction.reply(
+        `To achieve **${target}** flare rating across your top 90,\nYou would need to average:\n` +
+        results.join("\n")
+    );
+}
+
+if (interaction.commandName === "flarerating") {
+
+    const level = interaction.options.getInteger("level");
+    const flare = interaction.options.getInteger("flare");
+
+    const value = flareRatings[level]?.[flare];
+
+    if (value === undefined) {
+        return interaction.reply("Invalid level or flare value.");
+    }
+
+    const flareNames = [
+        "0","I","II","III","IV","V","VI","VII","VIII","IX","X"
+    ];
+
+    await interaction.reply(
+        `A Flare ${flareNames[flare]} clear on Level ${level} would get you **${value}** rating`
     );
 }
 

@@ -32,11 +32,18 @@ const commands = [
 )
 
         .addIntegerOption(option =>
-            option
-                .setName("level")
-                .setDescription("Chart level number")
-                .setRequired(false)
-        ),
+    option
+        .setName("min_level")
+        .setDescription("Minimum chart level")
+        .setRequired(false)
+)
+
+.addIntegerOption(option =>
+    option
+        .setName("max_level")
+        .setDescription("Maximum chart level")
+        .setRequired(false)
+),
     
 
     new SlashCommandBuilder()
@@ -83,6 +90,32 @@ new SlashCommandBuilder()
             .setRequired(true)
     ),
 
+new SlashCommandBuilder()
+    .setName("farm")
+    .setDescription("Shows a range of charts for a target rating")
+    .addIntegerOption(option =>
+        option
+            .setName("target")
+            .setDescription("Target flare rating")
+            .setRequired(true)
+    ),
+
+
+    new SlashCommandBuilder()
+    .setName("flarerating")
+    .setDescription("Calculate flare rating from level and flare gauge")
+    .addIntegerOption(option =>
+        option
+            .setName("level")
+            .setDescription("Chart level (1–19)")
+            .setRequired(true)
+    )
+    .addIntegerOption(option =>
+        option
+            .setName("flare")
+            .setDescription("Flare gauge (0–10)")
+            .setRequired(true)
+    ),
 ];
 
 const commandData = commands.map(command => command.toJSON());

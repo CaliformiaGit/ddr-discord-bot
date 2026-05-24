@@ -2,18 +2,18 @@
 
 Coding assisted by ChatGPT (sue me)
 
-Song information pulled from https://arcade-songs.zetaraku.dev/ddr/
-
---- GOALS ---
+\--- GOALS ---
 
 ● Add Ability to search for songs
-
 ● Add Ability to get a random song
-
 ● Improve Random song feature (search by chart type and level)
-
 ● Improve song searching (roomaji, nicknames, ui, etc.)
-
 ○ Add a dan course feature
+● Add a feature to search charts on youtube
 
-● Add Ability to search charts on youtube
+● Add a total flare rating calculator
+
+● Add a level flare rating calculator
+
+● Add Sanbai icecream score saving support
+
