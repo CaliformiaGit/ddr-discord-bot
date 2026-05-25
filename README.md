@@ -31,5 +31,5 @@ Coding assisted by ChatGPT (sue me)
 
 
 
-● Add Sanbai icecream score saving support
+○ Add Sanbai icecream score saving support
 
