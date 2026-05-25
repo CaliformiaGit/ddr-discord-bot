@@ -1,8 +1,9 @@
 require("dotenv").config();
 const axios = require("axios");
-const aliases = require("./aliases");
 const fs = require("fs");
+const aliases = require("./aliases");
 const flareRatings = require("./flare-data");
+const danCourses = require("./dan-courses");
 
 const {
     Client,
@@ -32,10 +33,12 @@ DDR Bot Commands ⬅️ ⬇️ ⬆️ ➡️
 
 /add-alias - Adds another term used to search for a song
 /chart - Searches for a specific chart video on Youtube
+/dan - Shows the songs for a specific Dan Course
+/farm - Calculates what level charts you would need to clear with which Flare Gauge to obtain a specific rating
+/flarerating - Calculates how much flare rating you would get from clearing a specific level chart on a specific flare gague
 /help - Shows this menu.
 /info - Fetches song title, artist, version and difficulties.
 /random - Picks a random chart, you can also filter by Doubles/Singles or by level range.
-/flarerating - Calculates what level charts you would need to clear with which Flare Gauge to obtain a specific rating
 `);
     }
 
@@ -143,7 +146,6 @@ if (interaction.commandName === "random") {
     
     const maxLevel = interaction.options.getInteger("max_level");
 
-    // build full chart list first
     let allCharts = [];
 
     songs.forEach(song => {
@@ -271,7 +273,7 @@ if (interaction.commandName === "farm") {
     const average = target / 90;
 
     const flareNames = [
-        "0","I","II","III","IV","V","VI","VII","VIII","IX","X"
+        "0","I","II","III","IV","V","VI","VII","VIII","IX","EX"
     ];
 
     let results = [];
@@ -327,6 +329,26 @@ if (interaction.commandName === "flarerating") {
 
     await interaction.reply(
         `A Flare ${flareNames[flare]} clear on Level ${level} would get you **${value}** rating`
+    );
+}
+
+if (interaction.commandName === "dan") {
+
+    const type = interaction.options.getString("type");
+    const danName = interaction.options.getString("dan");
+
+    const dan = danCourses.find(d =>
+        d.name.startsWith(type) &&
+        d.name.includes(danName)
+    );
+
+    if (!dan) {
+        return interaction.reply("DAN course not found.");
+    }
+
+    await interaction.reply(
+        `**${dan.name}**\n\n` +
+        dan.songs.join("\n")
     );
 }
 

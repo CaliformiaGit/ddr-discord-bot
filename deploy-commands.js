@@ -116,6 +116,46 @@ new SlashCommandBuilder()
             .setDescription("Flare gauge (0–10)")
             .setRequired(true)
     ),
+
+    new SlashCommandBuilder()
+    .setName("dan")
+    .setDescription("Fetches the songs for a specific Dan Course")
+
+    .addStringOption(option =>
+        option
+            .setName("type")
+            .setDescription("Singles or Doubles")
+            .setRequired(true)
+            .addChoices(
+                { name: "Singles", value: "SP" },
+                { name: "Doubles", value: "DP" }
+            )
+    )
+
+    .addStringOption(option =>
+        option
+            .setName("dan")
+            .setDescription("Select DAN course")
+            .setRequired(true)
+            .addChoices(
+                { name: "1st Dan", value: "1st Dan" },
+                { name: "2nd Dan", value: "2nd Dan" },
+                { name: "3rd Dan", value: "3rd Dan" },
+                { name: "4th Dan", value: "4th Dan" },
+                { name: "5th Dan", value: "5th Dan" },
+                { name: "6th Dan", value: "6th Dan" },
+                { name: "7th Dan", value: "7th Dan" },
+                { name: "8th Dan", value: "8th Dan" },
+                { name: "9th Dan", value: "9th Dan" },
+                { name: "10th Dan", value: "10th Dan" },
+                { name: "Master", value: "Master" },
+                { name: "Secret Master", value: "Secret Master" },
+                { name: "Grand Master", value: "Grand Master" },
+                { name: "Step Dragon", value: "Step Dragon" },
+                { name: "Step Legend", value: "Step Legend" },
+                { name: "True Step Legend", value: "True Step Legend" }
+            )
+    ),
 ];
 
 const commandData = commands.map(command => command.toJSON());
