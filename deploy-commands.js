@@ -110,9 +110,9 @@ new SlashCommandBuilder()
             .setDescription("Chart level (1–19)")
             .setRequired(true)
     )
-    .addIntegerOption(option =>
-        option
-            .setName("flare")
+    .addStringOption(option =>
+    option
+        .setName("flare")
             .setDescription("Flare gauge (0–10)")
             .setRequired(true)
     ),
@@ -135,7 +135,7 @@ new SlashCommandBuilder()
     .addStringOption(option =>
         option
             .setName("dan")
-            .setDescription("Select DAN course")
+            .setDescription("Select a Dan Course")
             .setRequired(true)
             .addChoices(
                 { name: "1st Dan", value: "1st Dan" },
@@ -156,6 +156,42 @@ new SlashCommandBuilder()
                 { name: "True Step Legend", value: "True Step Legend" }
             )
     ),
+
+    new SlashCommandBuilder()
+    .setName("sanbai-login")
+    .setDescription("Links your Sanbai Ice Cream account"
+
+    ),
+
+    new SlashCommandBuilder()
+    .setName("sanbai-profile")
+    .setDescription("Views your linked Sanbai Ice Cream profile"
+
+    ),
+
+    new SlashCommandBuilder()
+    .setName("sanbai-top")
+    .setDescription("Views your top 90 scores from Sanbai Icecream")
+    .addStringOption(option =>
+        option
+            .setName("type")
+            .setDescription("Singles or Doubles")
+            .setRequired(true)
+            .addChoices(
+                { name: "Singles", value: "single" },
+                { name: "Doubles", value: "double" }
+            )
+    ),
+
+    new SlashCommandBuilder()
+    .setName("sanbai-score")
+    .setDescription("View your Sanbai Ice Cream score for a song")
+    .addStringOption(option =>
+        option
+            .setName("song")
+            .setDescription("Song name")
+            .setRequired(true)
+    ),
 ];
 
 const commandData = commands.map(command => command.toJSON());
@@ -168,9 +204,7 @@ const rest = new REST({ version: "10" })
         console.log("Registering slash commands...");
 
         await rest.put(
-    Routes.applicationCommands(
-        "1494317894295748680"
-    ),
+    Routes.applicationCommands("1494317894295748680"),
     { body: commandData }
 );
 
