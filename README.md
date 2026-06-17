@@ -1,4 +1,4 @@
-﻿DDR Discord bot
+﻿DDR Discord bot V1.0.0
 
 
 

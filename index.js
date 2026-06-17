@@ -456,7 +456,7 @@ if (interaction.customId.startsWith("sanbai_profile_top_")) {
 
         if (interaction.customId.startsWith("sanbai_top_")) {
 
-    await interaction.deferReply();
+    await interaction.deferUpdate();
 
     const parts = interaction.customId.split("_");
 
@@ -497,12 +497,12 @@ if (interaction.user.id !== ownerId) {
     const { embed } = await buildSanbaiTopEmbed(username, type, newCategory);
 
 const backButton = new ButtonBuilder()
-    .setCustomId(`sanbai_top_prev_${type}_${category}_${discordId}`)
+    .setCustomId(`sanbai_top_prev_${type}_${newCategory}_${discordId}`)
     .setLabel("←")
     .setStyle(ButtonStyle.Secondary);
 
 const nextButton = new ButtonBuilder()
-    .setCustomId(`sanbai_top_next_${type}_${category}_${discordId}`)
+    .setCustomId(`sanbai_top_next_${type}_${newCategory}_${discordId}`)
     .setLabel("→")
     .setStyle(ButtonStyle.Secondary);
 
@@ -847,6 +847,8 @@ if (interaction.commandName === "add-alias") {
 
 if (interaction.commandName === "chart") {
 
+    await interaction.deferReply();
+
     const songName = interaction.options.getString("song");
     const type = interaction.options.getString("type");
     const difficulty = interaction.options.getString("difficulty");
@@ -859,7 +861,7 @@ const songDataJs = response.data;
 const songDataMatch = songDataJs.match(/var ALL_SONG_DATA=(\[[\s\S]*?\]);/);
 
 if (!songDataMatch) {
-    return interaction.reply("Could not load Sanbai song data.");
+    return interaction.editReply("Could not load Sanbai song data.");
 }
 
 const songs = JSON.parse(songDataMatch[1]);
@@ -879,7 +881,7 @@ const song = songs.find(s => {
 });
 
     if (!song) {
-        return interaction.reply("Song not found.");
+        return interaction.editReply("Song not found.");
     }
 
     let songDetailText = "";
@@ -942,13 +944,13 @@ const difficultyLower = difficulty.toLowerCase();
 const difficultyIndex = difficultyMap[type]?.[difficultyLower];
 
 if (difficultyIndex === undefined) {
-    return interaction.reply("That difficulty does not exist for that play style.");
+    return interaction.editReply("That difficulty does not exist for that play style.");
 }
 
 const level = song.ratings[difficultyIndex];
 
 if (!level) {
-    return interaction.reply("That chart does not exist for this song.");
+    return interaction.editReply("That chart does not exist for this song.");
 }
 
 const diffText = difficulty.toUpperCase();
@@ -986,10 +988,12 @@ const diffText = difficulty.toUpperCase();
 }
         );
 
-    await interaction.reply({
-        embeds: [embed]
-    });
+    await interaction.editReply({
+    embeds: [embed]
+});
+
 }
+
 
 if (interaction.commandName === "farm") {
 
@@ -1226,7 +1230,7 @@ if (interaction.commandName === "sanbai-profile") {
     const username = sanbaiAccounts[discordId];
 
     if (!username) {
-    return interaction.reply({
+    return interaction.followUp({
         content: "Please link your account using `/sanbai-login` and make sure to disable **Private Profile**.",
         ephemeral: true
     });
@@ -1242,7 +1246,6 @@ try {
     const response = await axios.get(profileUrl);
     html = response.data;
 
-    console.log("Fetched Sanbai profile page.");
 } catch (error) {
     console.error("Sanbai fetch failed:", error.message);
 
