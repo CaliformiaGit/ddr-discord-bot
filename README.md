@@ -16,14 +16,15 @@ Score Tracking using https://3icecream.com/
 /info - Fetches song title, artist, version and difficulties.
 /random - Picks a random chart, you can also filter by Doubles/Singles or by level range.
 
-Sanbai Ice Cream Score Linking Commands
+### Sanbai Ice Cream SCORE LINKING COMMANDS
 
 /sanbai-login - Links your Sanbai Ice Cream account to your Discord account.
 /sanbai-profile - Shows your Sanbai Ice Cream profile picture, DDR username and flare rating/ranks
 /sanbai-score - Shows your Singles/Doubles scores on every difficulty for a specific song
 /sanbai-top - Shows your top charts for Singles/Doubles
 
---- GOALS ---
+### --- GOALS ---
+
 ● Add Ability to search for songs
 
 ● Add Ability to get a random song
