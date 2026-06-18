@@ -1,7 +1,9 @@
 # DDR Discord bot
 
 Coding assisted by ChatGPT (sue me)
+
 Song Information pulled from https://arcade-songs.zetaraku.dev/ddr/
+
 Score Tracking using https://3icecream.com/
 
 ### COMMANDS
