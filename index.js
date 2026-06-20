@@ -221,6 +221,10 @@ async function buildSanbaiTopEmbed(username, type, category) {
         })
         .slice(0, 30);
 
+    const totalFlareSkill = topScores.reduce((total, score) => {
+    return total + score.flareSkill;
+}, 0);
+
     const list = topScores.length
         ? topScores
             .map((score, index) =>
@@ -231,7 +235,9 @@ async function buildSanbaiTopEmbed(username, type, category) {
         : "No Flare Skill scores found for this category.";
 
     const embed = new EmbedBuilder()
-        .setTitle(`${username}'s ${category.toUpperCase()} ${type === "single" ? "Singles" : "Doubles"} Flare Scores`)
+        .setTitle(
+    `${username}'s ${category.toUpperCase()} ${type === "single" ? "Singles" : "Doubles"} Flare Scores (${totalFlareSkill.toLocaleString()})`
+)
         .setURL(profileUrl)
         .setDescription(list)
         .setFooter({
@@ -422,6 +428,7 @@ if (interaction.customId.startsWith("sanbai_profile_top_")) {
 
     const type = parts[3];
     const discordId = parts[4];
+    const controllerId = interaction.user.id;
 
     const username = sanbaiAccounts[discordId];
 
@@ -436,12 +443,12 @@ if (interaction.customId.startsWith("sanbai_profile_top_")) {
     const { embed } = await buildSanbaiTopEmbed(username, type, category);
 
     const backButton = new ButtonBuilder()
-        .setCustomId(`sanbai_top_prev_${type}_${category}_${discordId}`)
+        .setCustomId(`sanbai_top_prev_${type}_${category}_${discordId}_${controllerId}`)
         .setLabel("←")
         .setStyle(ButtonStyle.Secondary);
 
     const nextButton = new ButtonBuilder()
-        .setCustomId(`sanbai_top_next_${type}_${category}_${discordId}`)
+        .setCustomId(`sanbai_top_next_${type}_${category}_${discordId}_${controllerId}`)
         .setLabel("→")
         .setStyle(ButtonStyle.Secondary);
 
@@ -464,8 +471,9 @@ const direction = parts[2];
 const type = parts[3];
 const category = parts[4];
 const ownerId = parts[5];
+const controllerId = parts[6];
 
-if (interaction.user.id !== ownerId) {
+if (interaction.user.id !== ownerId && interaction.user.id !== controllerId) {
     return interaction.followUp({
         content: "These buttons are for someone else's Sanbai profile.",
         ephemeral: true
@@ -497,12 +505,12 @@ if (interaction.user.id !== ownerId) {
     const { embed } = await buildSanbaiTopEmbed(username, type, newCategory);
 
 const backButton = new ButtonBuilder()
-    .setCustomId(`sanbai_top_prev_${type}_${newCategory}_${discordId}`)
+    .setCustomId(`sanbai_top_prev_${type}_${newCategory}_${ownerId}_${controllerId}`)
     .setLabel("←")
     .setStyle(ButtonStyle.Secondary);
 
 const nextButton = new ButtonBuilder()
-    .setCustomId(`sanbai_top_next_${type}_${newCategory}_${discordId}`)
+    .setCustomId(`sanbai_top_next_${type}_${newCategory}_${ownerId}_${controllerId}`)
     .setLabel("→")
     .setStyle(ButtonStyle.Secondary);
 
@@ -1369,6 +1377,7 @@ const row = new ActionRowBuilder()
 if (interaction.commandName === "sanbai-top") {
 
     const discordId = interaction.user.id;
+    const controllerId = discordId;
     const username = sanbaiAccounts[discordId];
     const type = interaction.options.getString("type");
     const category = "gold";
@@ -1385,12 +1394,12 @@ if (interaction.commandName === "sanbai-top") {
     const { embed } = await buildSanbaiTopEmbed(username, type, category);
 
     const backButton = new ButtonBuilder()
-        .setCustomId(`sanbai_top_prev_${type}_${category}_${discordId}`)
+        .setCustomId(`sanbai_top_prev_${type}_${category}_${discordId}_${controllerId}`)
         .setLabel("←")
         .setStyle(ButtonStyle.Secondary);
 
     const nextButton = new ButtonBuilder()
-        .setCustomId(`sanbai_top_next_${type}_${category}_${discordId}`)
+        .setCustomId(`sanbai_top_next_${type}_${category}_${discordId}_${controllerId}`)
         .setLabel("→")
         .setStyle(ButtonStyle.Secondary);
 
