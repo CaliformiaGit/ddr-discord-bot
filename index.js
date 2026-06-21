@@ -593,6 +593,7 @@ if (interaction.commandName === "help") {
 /dan - Shows the songs for a specific Dan Course.\n
 /farm - Calculates what level charts you would need to clear with which Flare Gauge to obtain a specific rating.\n
 /flarerating - Calculates how much flare rating you would get from clearing a specific level chart on a specific flare gauge.\n
+/flarecalculator - Calculates what flare you would be able to obtain with a specific score\n
 /help - Shows this menu.\n
 /info - Fetches song title, artist, version and difficulties.\n
 /random - Picks a random chart, you can also filter by Doubles/Singles or by level range.\n
@@ -1435,6 +1436,87 @@ if (interaction.commandName === "sanbai-score") {
     await interaction.editReply({
         embeds: [embed]
     });
+}
+
+if (interaction.commandName === "flarecalculator") {
+
+    const perfects = interaction.options.getInteger("perfects");
+    const greats = interaction.options.getInteger("greats");
+    const goods = interaction.options.getInteger("goods");
+    const misses = interaction.options.getInteger("misses");
+
+    if (perfects < 0 || greats < 0 || goods < 0 || misses < 0) {
+        return interaction.reply("Judgement counts cannot be negative.");
+    }
+
+    const baseDamage =
+        (greats * 2) +
+        (goods * 10) +
+        (misses * 30);
+
+    const exDamage = baseDamage + perfects;
+
+    const flareLifes = [
+        { name: "I", life: 2000, flare: 1 },
+        { name: "II", life: 1010, flare: 2 },
+        { name: "III", life: 680, flare: 3 },
+        { name: "IV", life: 278, flare: 4 },
+        { name: "V", life: 192, flare: 5 },
+        { name: "VI", life: 172, flare: 6 },
+        { name: "VII", life: 140, flare: 7 },
+        { name: "VIII", life: 118, flare: 8 },
+        { name: "IX", life: 100, flare: 9 },
+        { name: "EX", life: 100, flare: 10 }
+    ];
+
+    let bestFlare = null;
+
+    for (let i = flareLifes.length - 1; i >= 0; i--) {
+        const flare = flareLifes[i];
+
+        const damage =
+            flare.name === "EX"
+                ? exDamage
+                : baseDamage;
+
+        if (damage <= flare.life) {
+            bestFlare = flare;
+            break;
+        }
+    }
+
+    if (!bestFlare) {
+        return interaction.reply(
+            `No Flare clear possible.\n\n` +
+            `Damage: **${baseDamage}**\n` +
+            `EX Damage: **${exDamage}**`
+        );
+    }
+
+    const damageUsed =
+        bestFlare.name === "EX"
+            ? exDamage
+            : baseDamage;
+
+    const remainingLife = bestFlare.life - damageUsed;
+
+    const flareEmoji = flareRatings.emojis[bestFlare.flare] || "";
+
+    const perfectLine =
+    bestFlare.name === "EX"
+        ? `Perfects: **${perfects}**\n`
+        : "";
+
+await interaction.reply(
+    perfectLine +
+    `Greats: **${greats}**\n` +
+    `Goods: **${goods}**\n` +
+    `Misses: **${misses}**\n\n` +
+    `Highest possible flare: **Flare ${bestFlare.name}** ${flareEmoji}\n` +
+    `Remaining Life: **${remainingLife}/${bestFlare.life}**\n\n`+
+    `**Please note this result may not be accurate to Floating Flare**`
+);
+
 }
 
 });

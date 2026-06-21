@@ -1,4 +1,4 @@
-# DDR Discord bot
+﻿# DDR Discord bot
 
 Coding assisted by ChatGPT (sue me)
 
@@ -18,6 +18,8 @@ Score Tracking using https://3icecream.com/
 /farm - Calculates what level charts you would need to clear with which Flare Gauge to obtain a specific rating.
 
 /flarerating - Calculates how much flare rating you would get from clearing a specific level chart on a specific flare gauge.
+
+/flarecalculator - Calculates what flare you would be able to obtain with a specific score
 
 /help - Shows this menu.
 
@@ -56,3 +58,5 @@ Score Tracking using https://3icecream.com/
 ● Add Sanbai Ice Cream score saving support
 
 ● Add Emojis to make it look better
+
+● Add a flare calculator for figuring out what flare you can clear a chart with

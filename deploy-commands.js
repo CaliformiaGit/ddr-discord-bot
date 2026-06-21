@@ -192,6 +192,38 @@ new SlashCommandBuilder()
             .setDescription("Song name")
             .setRequired(true)
     ),
+
+    new SlashCommandBuilder()
+    .setName("flarecalculator")
+    .setDescription("Calculates score from DDR judgement counts.")
+    .addIntegerOption(option =>
+        option
+            .setName("perfects")
+            .setDescription("Number of PERFECTs")
+            .setRequired(true)
+            .setMinValue(0)
+    )
+    .addIntegerOption(option =>
+        option
+            .setName("greats")
+            .setDescription("Number of GREATs")
+            .setRequired(true)
+            .setMinValue(0)
+    )
+    .addIntegerOption(option =>
+        option
+            .setName("goods")
+            .setDescription("Number of GOODs")
+            .setRequired(true)
+            .setMinValue(0)
+    )
+    .addIntegerOption(option =>
+        option
+            .setName("misses")
+            .setDescription("Number of MISSes")
+            .setRequired(true)
+            .setMinValue(0)
+    )
 ];
 
 const commandData = commands.map(command => command.toJSON());
