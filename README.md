@@ -1,4 +1,4 @@
-﻿# DDR Discord bot
+﻿# DDR Discord bot V1.0.1
 
 Coding assisted by ChatGPT (sue me)
 
