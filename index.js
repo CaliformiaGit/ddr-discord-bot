@@ -1502,8 +1502,11 @@ if (interaction.commandName === "flarecalculator") {
 
     const flareEmoji = flareRatings.emojis[bestFlare.flare] || "";
 
-    const perfectLine =
-    bestFlare.name === "EX"
+    const perfectsBlockedEX =
+    baseDamage <= 100 && exDamage > 100;
+
+const perfectLine =
+    bestFlare.name === "EX" || perfectsBlockedEX
         ? `Perfects: **${perfects}**\n`
         : "";
 
