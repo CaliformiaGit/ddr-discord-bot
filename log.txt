@@ -1,2 +1,0 @@
-◇ injected env (1) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
-Logged in as DDRBot#8341
