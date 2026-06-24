@@ -1,4 +1,4 @@
-﻿# DDR Discord bot V1.0.1
+﻿# DDR Discord bot V1.0.2
 
 Coding assisted by ChatGPT (sue me)
 
@@ -30,6 +30,8 @@ Score Tracking using https://3icecream.com/
 ### Sanbai Ice Cream SCORE LINKING COMMANDS
 
 /sanbai-login - Links your Sanbai Ice Cream account to your Discord account.
+
+/sanbai-logout - Unlinks your Sanbai Ice Cream account from your Discord account.
 
 /sanbai-profile - Shows your Sanbai Ice Cream profile picture, DDR username and flare rating/ranks
 

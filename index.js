@@ -599,6 +599,7 @@ if (interaction.commandName === "help") {
 /random - Picks a random chart, you can also filter by Doubles/Singles or by level range.\n
 **Sanbai Ice Cream Score Linking Commands**\n
 /sanbai-login - Links your Sanbai Ice Cream account to your Discord account.\n
+/sanbai-logout - Unlinks your Sanbai Ice Cream account from your Discord account.\n
 /sanbai-profile - Shows your Sanbai Ice Cream profile picture, DDR username and flare rating/ranks\n
 /sanbai-score - Shows your Singles/Doubles scores on every difficulty for a specific song\n
 /sanbai-top - Shows your top charts for Singles/Doubles
@@ -1108,6 +1109,8 @@ for (const rank of ranks) {
 
 if (interaction.commandName === "dan") {
 
+    await interaction.deferReply();
+
     const type = interaction.options.getString("type");
     const danName = interaction.options.getString("dan");
 
@@ -1117,29 +1120,78 @@ if (interaction.commandName === "dan") {
     );
 
     if (!dan) {
-        return interaction.reply("DAN course not found.");
+        return interaction.editReply("DAN course not found.");
     }
 
-    const response = await axios.get(
-        "https://dp4p6x0xfi5o9.cloudfront.net/ddr/data.json"
-    );
+    const response = await axios.get("https://3icecream.com/js/songdata.js");
+    const songDataJs = response.data;
 
-    const songs = response.data.songs;
+    const songDataMatch = songDataJs.match(/var ALL_SONG_DATA=(\[[\s\S]*?\]);/);
+
+    if (!songDataMatch) {
+        return interaction.editReply("Could not load Sanbai song data.");
+    }
+
+    const songs = JSON.parse(songDataMatch[1]);
+
+    async function getSanbaiArtist(song) {
+        let songDetailText = "";
+
+        try {
+            const detailResponse = await axios.get(
+                `https://3icecream.com/ddr/song_details/${song.song_id}`
+            );
+
+            songDetailText = detailResponse.data
+                .replace(/<[^>]*>/g, " ")
+                .replace(/&nbsp;/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+        } catch (error) {
+            console.error("Could not load Sanbai song detail page:", error.message);
+        }
+
+        let sanbaiArtist = "Unknown";
+
+        const bpmIndex = songDetailText.indexOf("BPM");
+
+        if (bpmIndex !== -1) {
+            const beforeBpm = songDetailText.slice(0, bpmIndex);
+            const titleIndex = beforeBpm.lastIndexOf(song.song_name);
+
+            if (titleIndex !== -1) {
+                sanbaiArtist = beforeBpm
+                    .slice(titleIndex + song.song_name.length)
+                    .trim();
+            }
+        }
+
+        if (!sanbaiArtist || sanbaiArtist.length > 100) {
+            sanbaiArtist = "Unknown";
+        }
+
+        return sanbaiArtist;
+    }
 
     const embeds = [];
 
     const titleEmbed = new EmbedBuilder()
         .setTitle(`${dan.name}`)
-        .setDescription(
-            dan.songs.join("\n")
-        );
+        .setDescription(dan.songs.join("\n"));
 
     embeds.push(titleEmbed);
+
+    const difficultyMap = {
+        beginner: 0,
+        basic: type === "SP" ? 1 : 5,
+        difficult: type === "SP" ? 2 : 6,
+        expert: type === "SP" ? 3 : 7,
+        challenge: type === "SP" ? 4 : 8
+    };
 
     for (let i = 0; i < dan.songs.length; i++) {
 
         const entry = dan.songs[i];
-
         const parts = entry.split(" ");
 
         const level = parts[parts.length - 1];
@@ -1148,61 +1200,80 @@ if (interaction.commandName === "dan") {
         const title =
             parts.slice(0, parts.length - 2).join(" ");
 
-        const song = songs.find(s =>
-            s.title.toLowerCase() === title.toLowerCase()
-        );
+        const aliasTitle = aliases[title.toLowerCase()];
+        const searchName = aliasTitle || title;
+        const searchLower = searchName.toLowerCase();
+
+        const song = songs.find(s => {
+            const mainName = s.song_name.toLowerCase();
+            const altName = s.alternate_name?.toLowerCase();
+
+            return mainName === searchLower ||
+                altName === searchLower ||
+                mainName.includes(searchLower) ||
+                altName?.includes(searchLower);
+        });
 
         const icon =
-    difficultyColors[difficulty.toLowerCase()] || "⬜";
+            difficultyColors[difficulty.toLowerCase()] || "⬜";
 
         const embed = new EmbedBuilder()
             .setAuthor({
-    name:
-        i === dan.songs.length - 1
-            ? "Final Stage"
-            : `Stage ${i + 1}`
-})
-
+                name:
+                    i === dan.songs.length - 1
+                        ? "Final Stage"
+                        : `Stage ${i + 1}`
+            })
             .setDescription(
                 `${icon} **${title}**\n${difficulty} ${level}`
             );
 
         if (song) {
+            const difficultyIndex = difficultyMap[difficulty.toLowerCase()];
+            const sanbaiLevel = song.ratings[difficultyIndex] || level;
 
-            embed.setThumbnail(
-                `https://dp4p6x0xfi5o9.cloudfront.net/ddr/img/cover/${song.imageName}`
-            );
+            const sanbaiArtist = await getSanbaiArtist(song);
+
+            embed
+                .setDescription(
+                    `${icon} **${song.song_name}**\n${difficulty} ${sanbaiLevel}`
+                )
+                .setThumbnail(
+                    `https://3icecream.com/img/banners/${song.song_id}.jpg`
+                );
+
+            const chartType = type === "SP" ? "Single" : "Double";
 
             const youtubeUrl =
-    `https://www.youtube.com/results?search_query=${
-        encodeURIComponent(
-            `${title} DDR ${difficulty} ${type === "sp" ? "Single" : "Double"}`
-        )
-    }`;
+                `https://www.youtube.com/results?search_query=${
+                    encodeURIComponent(
+                        `${song.song_name} DDR ${difficulty} ${chartType}`
+                    )
+                }`;
 
-embed.addFields(
-    {
-        name: "Artist",
-        value: song.artist || "Unknown",
-        inline: true
-    },
-    {
-        name: "Version",
-        value: song.version || "Unknown",
-        inline: true
-    },
-    {
-        name: "Chart on YouTube",
-        value: `[${title} ${difficulty}](${youtubeUrl})`,
-        inline: false
-    }
-);
+            embed.addFields(
+                {
+                    name: "Artist",
+                    value: sanbaiArtist || "Unknown",
+                    inline: true
+                },
+                {
+                    name: "Version",
+                    value: `${sanbaiVersionNames[song.version_num] || String(song.version_num ?? "Unknown")} (${getSanbaiEra(song.version_num)})`,
+                    inline: true
+                },
+                {
+                    name: "Chart on YouTube",
+                    value: `[${song.song_name} ${difficulty}](${youtubeUrl})`,
+                    inline: false
+                }
+            );
         }
 
         embeds.push(embed);
     }
 
-    await interaction.reply({
+    await interaction.editReply({
         embeds
     });
 }
@@ -1235,12 +1306,22 @@ if (interaction.commandName === "sanbai-login") {
 
 if (interaction.commandName === "sanbai-profile") {
 
-    const discordId = interaction.user.id;
-    const username = sanbaiAccounts[discordId];
+    const targetUser =
+    interaction.options.getUser("user") || interaction.user;
+
+const targetMember =
+    interaction.options.getMember("user") || interaction.member;
+
+const discordId = targetUser.id;
+const username = sanbaiAccounts[discordId];
 
     if (!username) {
-    return interaction.followUp({
-        content: "Please link your account using `/sanbai-login` and make sure to disable **Private Profile**.",
+    const checkingSelf = targetUser.id === interaction.user.id;
+
+    return interaction.reply({
+        content: checkingSelf
+            ? "Please link your account using `/sanbai-login` and make sure to disable **Private Profile**."
+            : `${targetUser.username} has not linked a Sanbai account.`,
         ephemeral: true
     });
 }
@@ -1309,7 +1390,7 @@ const doubleRankDisplay = ranks.emojis[doubleRank]
     : doubleRank;
 
 const embed = new EmbedBuilder()
-    .setTitle(`${interaction.member?.nickname || interaction.user.globalName || interaction.user.username}'s Sanbai Profile`)
+    .setTitle(`${targetMember?.nickname || targetUser.globalName || targetUser.username}'s Sanbai Profile`)
     .setURL(profileUrl)
     .setThumbnail(profileImageUrl)
     .addFields(
@@ -1377,18 +1458,25 @@ const row = new ActionRowBuilder()
 
 if (interaction.commandName === "sanbai-top") {
 
-    const discordId = interaction.user.id;
-    const controllerId = discordId;
-    const username = sanbaiAccounts[discordId];
-    const type = interaction.options.getString("type");
-    const category = "gold";
+    const targetUser =
+    interaction.options.getUser("user") || interaction.user;
+
+const discordId = targetUser.id;
+const controllerId = interaction.user.id;
+const username = sanbaiAccounts[discordId];
+const type = interaction.options.getString("type");
+const category = "gold";
 
     if (!username) {
-        return interaction.reply({
-            content: "Please link your account using `/sanbai-login` and make sure to disable **Private Profile**.",
-            ephemeral: true
-        });
-    }
+    const checkingSelf = targetUser.id === interaction.user.id;
+
+    return interaction.reply({
+        content: checkingSelf
+            ? "Please link your account using `/sanbai-login` and make sure to disable **Private Profile**."
+            : `${targetUser.username} has not linked a Sanbai account.`,
+        ephemeral: true
+    });
+}
 
     await interaction.deferReply();
 
@@ -1415,19 +1503,26 @@ if (interaction.commandName === "sanbai-top") {
 
 if (interaction.commandName === "sanbai-score") {
 
-    const discordId = interaction.user.id;
-    const username = sanbaiAccounts[discordId];
+    const targetUser =
+    interaction.options.getUser("user") || interaction.user;
+
+const discordId = targetUser.id;
+const username = sanbaiAccounts[discordId];
 
     const songInput = interaction.options.getString("song");
     const aliasTitle = aliases[songInput.toLowerCase()];
     const songSearch = aliasTitle || songInput;
 
     if (!username) {
-        return interaction.reply({
-            content: "Please link your account using `/sanbai-login` and make sure to disable **Private Profile**.",
-            ephemeral: true
-        });
-    }
+    const checkingSelf = targetUser.id === interaction.user.id;
+
+    return interaction.reply({
+        content: checkingSelf
+            ? "Please link your account using `/sanbai-login` and make sure to disable **Private Profile**."
+            : `${targetUser.username} has not linked a Sanbai account.`,
+        ephemeral: true
+    });
+}
 
     await interaction.deferReply();
 
@@ -1520,6 +1615,34 @@ await interaction.reply(
     `**Please note this result may not be accurate to Floating Flare**`
 );
 
+}
+
+if (interaction.commandName === "sanbai-logout") {
+
+    const discordId = interaction.user.id;
+
+    if (!sanbaiAccounts[discordId]) {
+        return interaction.reply({
+            content: "You do not have a linked Sanbai Ice Cream account.",
+            ephemeral: true
+        });
+    }
+
+    const oldUsername = sanbaiAccounts[discordId];
+
+    delete sanbaiAccounts[discordId];
+
+    const fileContent =
+        "module.exports = " +
+        JSON.stringify(sanbaiAccounts, null, 4) +
+        ";\n";
+
+    fs.writeFileSync("./js/sanbai-accounts.js", fileContent);
+
+    await interaction.reply({
+        content: `Unlinked your Sanbai Ice Cream account: **${oldUsername}**`,
+        ephemeral: true
+    });
 }
 
 });

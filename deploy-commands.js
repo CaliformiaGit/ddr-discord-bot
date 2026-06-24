@@ -165,13 +165,17 @@ new SlashCommandBuilder()
 
     new SlashCommandBuilder()
     .setName("sanbai-profile")
-    .setDescription("Views your linked Sanbai Ice Cream profile"
-
+    .setDescription("Views a linked Sanbai Ice Cream profile")
+    .addUserOption(option =>
+        option
+            .setName("user")
+            .setDescription("User to check profile for")
+            .setRequired(false)
     ),
 
     new SlashCommandBuilder()
     .setName("sanbai-top")
-    .setDescription("Views your top 90 scores from Sanbai Icecream")
+    .setDescription("Views top 90 scores from Sanbai Icecream")
     .addStringOption(option =>
         option
             .setName("type")
@@ -181,21 +185,33 @@ new SlashCommandBuilder()
                 { name: "Singles", value: "single" },
                 { name: "Doubles", value: "double" }
             )
+    )
+    .addUserOption(option =>
+        option
+            .setName("user")
+            .setDescription("User to check top scores for")
+            .setRequired(false)
     ),
 
-    new SlashCommandBuilder()
+new SlashCommandBuilder()
     .setName("sanbai-score")
-    .setDescription("View your Sanbai Ice Cream score for a song")
+    .setDescription("View a Sanbai Ice Cream score for a song")
     .addStringOption(option =>
         option
             .setName("song")
             .setDescription("Song name")
             .setRequired(true)
+    )
+    .addUserOption(option =>
+        option
+            .setName("user")
+            .setDescription("User to check scores for")
+            .setRequired(false)
     ),
 
     new SlashCommandBuilder()
     .setName("flarecalculator")
-    .setDescription("Calculates score from DDR judgement counts.")
+    .setDescription("Calculates the highest possible flare from note judgement counts.")
     .addIntegerOption(option =>
         option
             .setName("perfects")
@@ -223,7 +239,12 @@ new SlashCommandBuilder()
             .setDescription("Number of MISSes")
             .setRequired(true)
             .setMinValue(0)
-    )
+    ),
+
+    new SlashCommandBuilder()
+    .setName("sanbai-logout")
+    .setDescription("Unlinks your Sanbai Ice Cream account"),
+
 ];
 
 const commandData = commands.map(command => command.toJSON());
