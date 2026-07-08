@@ -1,11 +1,11 @@
 require("dotenv").config();
 const axios = require("axios");
 const fs = require("fs");
-const aliases = require("./js/aliases");
+let aliases = require("./js/aliases");
 const flareRatings = require("./js/flare-data");
 const danCourses = require("./js/dan-courses");
 const ranks = require("./js/flare-ranks");
-const sanbaiAccounts = require("./js/sanbai-accounts");
+let sanbaiAccounts = require("./js/sanbai-accounts");
 const { scoreRankEmojis, getScoreGrade } = require("./js/score-ranks");
 
 const {
@@ -66,13 +66,6 @@ const lampEmojis = {
     6: "<:mfc:1512258663245676785>"
 };
 
-function getSanbaiEra(versionNum) {
-    if (versionNum >= 1 && versionNum <= 13) return "CLASSIC";
-    if (versionNum >= 14 && versionNum <= 16) return "WHITE";
-    if (versionNum >= 17 && versionNum <= 20) return "GOLD";
-    return "UNKNOWN";
-}
-
 const arrows = {
     left: "<:arrow_left:1508320578707394690>",
     down: "<:arrow_down:1508320576509579296>",
@@ -90,6 +83,141 @@ const difficultyColors = {
 
 const scoreButtonSongs = new Map();
 let scoreButtonCounter = 0;
+
+const difficultyListCache = new Map();
+
+function escapeRegex(text) {
+    return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function roundToNearest005(value) {
+    return (Math.round(value * 20) / 20).toFixed(2);
+}
+
+function normalizeSanbaiText(text) {
+    return String(text)
+        .normalize("NFKC")
+        .replace(/[’‘]/g, "'")
+        .replace(/[“”]/g, '"')
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function roundToNearest005(value) {
+    return (Math.round(value * 20) / 20).toFixed(2);
+}
+
+async function getSanbaiDecimalLevel(song, difficultyIndex) {
+    const level = Number(song.ratings?.[difficultyIndex]);
+
+    if (!level) {
+        return null;
+    }
+
+    const spdp = difficultyIndex <= 4 ? 0 : 1;
+
+    const difficultyNames = {
+        0: ["Beginner", "習"],
+        1: ["Basic", "楽"],
+        2: ["Difficult", "踊"],
+        3: ["Expert", "激"],
+        4: ["Challenge", "鬼"],
+        5: ["Basic", "楽"],
+        6: ["Difficult", "踊"],
+        7: ["Expert", "激"],
+        8: ["Challenge", "鬼"]
+    };
+
+    const url =
+        spdp === 1
+            ? `https://3icecream.com/difficulty_list/history/${level}?spdp=1`
+            : `https://3icecream.com/difficulty_list/history/${level}`;
+
+    let pageText = difficultyListCache.get(url);
+
+    if (!pageText) {
+        try {
+            const response = await axios.get(url, {
+                headers: {
+                    "Accept-Language": "en-US,en;q=0.9"
+                }
+            });
+
+            pageText = normalizeSanbaiText(
+                response.data
+                    .replace(/<script[\s\S]*?<\/script>/g, " ")
+                    .replace(/<style[\s\S]*?<\/style>/g, " ")
+                    .replace(/<[^>]*>/g, " ")
+                    .replace(/&nbsp;/g, " ")
+                    .replace(/&amp;/g, "&")
+                    .replace(/&#39;/g, "'")
+                    .replace(/&quot;/g, '"')
+            );
+
+            difficultyListCache.set(url, pageText);
+        } catch (error) {
+            console.error("Could not load Sanbai difficulty history:", error.message);
+            return null;
+        }
+    }
+
+    const possibleNames = [
+        song.song_name,
+        ...(song.alternate_name ? song.alternate_name.split("/") : [])
+    ]
+        .filter(Boolean)
+        .map(name => normalizeSanbaiText(name));
+
+    for (const name of possibleNames) {
+        for (const diffName of difficultyNames[difficultyIndex]) {
+            const regex = new RegExp(
+                `${escapeRegex(name)}[\\s\\S]{0,160}?${escapeRegex(diffName)}\\s+((?:-|\\d{1,2}\\.\\d{2})\\s*){1,20}`,
+                "i"
+            );
+
+            const match = pageText.match(regex);
+
+            if (!match) continue;
+
+            const decimalMatches = match[0].match(/\d{1,2}\.\d{2}/g);
+
+            if (!decimalMatches || decimalMatches.length === 0) continue;
+
+            const latestDecimal = Number(decimalMatches[decimalMatches.length - 1]);
+
+            return roundToNearest005(latestDecimal);
+        }
+    }
+
+    return null;
+}
+
+function getSanbaiEra(versionNum) {
+    if (versionNum >= 1 && versionNum <= 13) return "CLASSIC";
+    if (versionNum >= 14 && versionNum <= 16) return "WHITE";
+    if (versionNum >= 17 && versionNum <= 20) return "GOLD";
+    return "UNKNOWN";
+}
+
+function reloadAliases() {
+    try {
+        delete require.cache[require.resolve("./js/aliases")];
+        aliases = require("./js/aliases");
+    } catch (error) {
+        console.error("Could not reload aliases:", error.message);
+    }
+}
+
+function reloadSanbaiAccounts() {
+    try {
+        delete require.cache[require.resolve("./js/sanbai-accounts")];
+        sanbaiAccounts = require("./js/sanbai-accounts");
+    } catch (error) {
+        console.error("Could not reload Sanbai accounts:", error.message);
+    }
+}
+
+const OWNER_ID = "1174226755242954843";
 
 async function buildSanbaiTopEmbed(username, type, category) {
     const profileUrl =
@@ -430,7 +558,9 @@ if (interaction.customId.startsWith("sanbai_profile_top_")) {
     const discordId = parts[4];
     const controllerId = interaction.user.id;
 
-    const username = sanbaiAccounts[discordId];
+    reloadSanbaiAccounts();
+
+const username = sanbaiAccounts[discordId];
 
     if (!username) {
         return interaction.editReply({
@@ -493,7 +623,10 @@ if (interaction.user.id !== ownerId && interaction.user.id !== controllerId) {
     const newCategory = categories[newIndex];
 
     const discordId = ownerId;
-    const username = sanbaiAccounts[discordId];
+
+reloadSanbaiAccounts();
+
+const username = sanbaiAccounts[discordId];
 
     if (!username) {
         return interaction.reply({
@@ -536,7 +669,9 @@ if (!songTitle) {
 }
 
     const discordId = interaction.user.id;
-    const username = sanbaiAccounts[discordId];
+    reloadSanbaiAccounts();
+
+const username = sanbaiAccounts[discordId];
 
     if (!username) {
         return interaction.reply({
@@ -566,7 +701,9 @@ if (interaction.isModalSubmit()) {
 
         const discordId = interaction.user.id;
 
-        sanbaiAccounts[discordId] = username;
+reloadSanbaiAccounts();
+
+sanbaiAccounts[discordId] = username;
 
         const fileContent =
             "module.exports = " +
@@ -612,7 +749,9 @@ if (interaction.commandName === "info") {
 
     const songName = interaction.options.getString("song");
 
-    const aliasTitle = aliases[songName.toLowerCase()];
+reloadAliases();
+
+const aliasTitle = aliases[songName.toLowerCase()];
 
 const response = await axios.get("https://3icecream.com/js/songdata.js");
 const songDataJs = response.data;
@@ -694,15 +833,27 @@ const sanbaiDifficulties = [
     { name: "Challenge", type: "Double", icon: "🟪", index: 8 }
 ];
 
-const singles = sanbaiDifficulties
-    .filter(diff => diff.type === "Single" && song.ratings[diff.index])
-    .map(diff => `${diff.icon} ${diff.name}: ${song.ratings[diff.index]}`)
-    .join("\n");
+const singles = (await Promise.all(
+    sanbaiDifficulties
+        .filter(diff => diff.type === "Single" && song.ratings[diff.index])
+        .map(async diff => {
+            const level = song.ratings[diff.index];
+            const decimalLevel = await getSanbaiDecimalLevel(song, diff.index);
 
-const doubles = sanbaiDifficulties
-    .filter(diff => diff.type === "Double" && song.ratings[diff.index])
-    .map(diff => `${diff.icon} ${diff.name}: ${song.ratings[diff.index]}`)
-    .join("\n");
+            return `${diff.icon} ${diff.name}: ${level}${decimalLevel ? ` (${decimalLevel})` : ""}`;
+        })
+)).join("\n");
+
+const doubles = (await Promise.all(
+    sanbaiDifficulties
+        .filter(diff => diff.type === "Double" && song.ratings[diff.index])
+        .map(async diff => {
+            const level = song.ratings[diff.index];
+            const decimalLevel = await getSanbaiDecimalLevel(song, diff.index);
+
+            return `${diff.icon} ${diff.name}: ${level}${decimalLevel ? ` (${decimalLevel})` : ""}`;
+        })
+)).join("\n");
 
 const difficulties = `**Single:**\n${singles || "None"}\n\n**Double:**\n${doubles || "None"}`;
 
@@ -846,9 +997,29 @@ if (interaction.commandName === "add-alias") {
     const song = interaction.options.getString("song");
     const alias = interaction.options.getString("alias");
 
+    if (song.length > 50 || alias.length > 50) {
+    return interaction.reply({
+        content: "Song titles and aliases must be 50 characters or less.",
+        ephemeral: true
+    });
+}
+
     const line = `"${alias}": "${song}",\n`;
 
     fs.appendFileSync("./js/user-aliases.txt", line);
+
+    try {
+        const owner = await client.users.fetch(OWNER_ID);
+
+        await owner.send(
+            `New alias submitted!\n\n` +
+            `Song: **${song}**\n` +
+            `Alias: **${alias}**\n` +
+            `Submitted by: **${interaction.user.username}** (${interaction.user.id})`
+        );
+    } catch (error) {
+        console.error("Could not DM alias submission:", error.message);
+    }
 
     await interaction.reply(
         `Alias submitted!\n**${song}** -> **${alias}**\n\nThank you for your contribution 💙🩷\nNote: **Please do not submit any joke submissions or misspelt titles.**`
@@ -860,10 +1031,12 @@ if (interaction.commandName === "chart") {
     await interaction.deferReply();
 
     const songName = interaction.options.getString("song");
-    const type = interaction.options.getString("type");
-    const difficulty = interaction.options.getString("difficulty");
+const type = interaction.options.getString("type");
+const difficulty = interaction.options.getString("difficulty");
 
-    const aliasTitle = aliases[songName.toLowerCase()];
+reloadAliases();
+
+const aliasTitle = aliases[songName.toLowerCase()];
 
     const response = await axios.get("https://3icecream.com/js/songdata.js");
 const songDataJs = response.data;
@@ -1200,8 +1373,10 @@ if (interaction.commandName === "dan") {
         const title =
             parts.slice(0, parts.length - 2).join(" ");
 
-        const aliasTitle = aliases[title.toLowerCase()];
-        const searchName = aliasTitle || title;
+        reloadAliases();
+
+const aliasTitle = aliases[title.toLowerCase()];
+const searchName = aliasTitle || title;
         const searchLower = searchName.toLowerCase();
 
         const song = songs.find(s => {
@@ -1313,6 +1488,9 @@ const targetMember =
     interaction.options.getMember("user") || interaction.member;
 
 const discordId = targetUser.id;
+
+reloadSanbaiAccounts();
+
 const username = sanbaiAccounts[discordId];
 
     if (!username) {
@@ -1463,7 +1641,11 @@ if (interaction.commandName === "sanbai-top") {
 
 const discordId = targetUser.id;
 const controllerId = interaction.user.id;
+
+reloadSanbaiAccounts();
+
 const username = sanbaiAccounts[discordId];
+
 const type = interaction.options.getString("type");
 const category = "gold";
 
@@ -1507,11 +1689,17 @@ if (interaction.commandName === "sanbai-score") {
     interaction.options.getUser("user") || interaction.user;
 
 const discordId = targetUser.id;
+
+reloadSanbaiAccounts();
+
 const username = sanbaiAccounts[discordId];
 
     const songInput = interaction.options.getString("song");
-    const aliasTitle = aliases[songInput.toLowerCase()];
-    const songSearch = aliasTitle || songInput;
+
+reloadAliases();
+
+const aliasTitle = aliases[songInput.toLowerCase()];
+const songSearch = aliasTitle || songInput;
 
     if (!username) {
     const checkingSelf = targetUser.id === interaction.user.id;
@@ -1619,9 +1807,11 @@ await interaction.reply(
 
 if (interaction.commandName === "sanbai-logout") {
 
-    const discordId = interaction.user.id;
+const discordId = interaction.user.id;
 
-    if (!sanbaiAccounts[discordId]) {
+reloadSanbaiAccounts();
+
+if (!sanbaiAccounts[discordId]) {
         return interaction.reply({
             content: "You do not have a linked Sanbai Ice Cream account.",
             ephemeral: true
