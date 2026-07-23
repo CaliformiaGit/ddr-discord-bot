@@ -31,8 +31,6 @@ Score Tracking using https://3icecream.com/
 
 /sanbai-login - Links your Sanbai Ice Cream account to your Discord account.
 
-/sanbai-logout - Unlinks your Sanbai Ice Cream account from your Discord account.
-
 /sanbai-profile - Shows your Sanbai Ice Cream profile picture, DDR username and flare rating/ranks
 
 /sanbai-score - Shows your Singles/Doubles scores on every difficulty for a specific song

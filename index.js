@@ -8,6 +8,20 @@ const ranks = require("./js/flare-ranks");
 let sanbaiAccounts = require("./js/sanbai-accounts");
 const { scoreRankEmojis, getScoreGrade } = require("./js/score-ranks");
 
+function reloadSanbaiAccounts() {
+    delete require.cache[require.resolve("./js/sanbai-accounts")];
+    sanbaiAccounts = require("./js/sanbai-accounts");
+}
+
+function saveSanbaiAccounts() {
+    const fileContent =
+        "module.exports = " +
+        JSON.stringify(sanbaiAccounts, null, 4) +
+        ";\n";
+
+    fs.writeFileSync("./js/sanbai-accounts.js", fileContent);
+}
+
 const {
     Client,
     GatewayIntentBits,
@@ -101,10 +115,6 @@ function normalizeSanbaiText(text) {
         .replace(/[“”]/g, '"')
         .replace(/\s+/g, " ")
         .trim();
-}
-
-function roundToNearest005(value) {
-    return (Math.round(value * 20) / 20).toFixed(2);
 }
 
 async function getSanbaiDecimalLevel(song, difficultyIndex) {
@@ -353,6 +363,10 @@ async function buildSanbaiTopEmbed(username, type, category) {
     return total + score.flareSkill;
 }, 0);
 
+const averageFlareSkill = topScores.length
+    ? Math.round(totalFlareSkill / topScores.length)
+    : 0;
+
     const list = topScores.length
         ? topScores
             .map((score, index) =>
@@ -364,7 +378,7 @@ async function buildSanbaiTopEmbed(username, type, category) {
 
     const embed = new EmbedBuilder()
         .setTitle(
-    `${username}'s ${category.toUpperCase()} ${type === "single" ? "Singles" : "Doubles"} Flare Scores (${totalFlareSkill.toLocaleString()})`
+    `${username}'s ${category.toUpperCase()} ${type === "single" ? "Singles" : "Doubles"} Flare Scores (${totalFlareSkill.toLocaleString()}) (Average: ${averageFlareSkill.toLocaleString()})`
 )
         .setURL(profileUrl)
         .setDescription(list)
@@ -549,6 +563,32 @@ client.on(Events.InteractionCreate, async interaction => {
             await interaction.showModal(modal);
         }
 
+        if (interaction.customId === "sanbai_login_logout") {
+
+    const discordId = interaction.user.id;
+
+    const username = sanbaiAccounts[discordId];
+
+    if (!username) {
+        return interaction.reply({
+            content: "You do not have a linked Sanbai Ice Cream account.",
+            ephemeral: true
+        });
+    }
+
+    delete sanbaiAccounts[discordId];
+
+    saveSanbaiAccounts();
+
+    await interaction.update({
+        content: "Your Sanbai account has been unlinked.",
+        embeds: [],
+        components: []
+    });
+
+    return;
+}
+
 if (interaction.customId.startsWith("sanbai_profile_top_")) {
     await interaction.deferReply();
 
@@ -629,7 +669,7 @@ reloadSanbaiAccounts();
 const username = sanbaiAccounts[discordId];
 
     if (!username) {
-        return interaction.reply({
+        return interaction.followUp({
             content: "Please link your account using `/sanbai-login` and make sure to disable **Private Profile**.",
             ephemeral: true
         });
@@ -663,7 +703,7 @@ const songTitle = scoreButtonSongs.get(scoreButtonId);
 
 if (!songTitle) {
     return interaction.reply({
-        content: "This score button expired. Please run `/info` again.",
+        content: "This button has expired. Please use /info again.",
         ephemeral: true
     });
 }
@@ -820,6 +860,16 @@ if (!sanbaiArtist || sanbaiArtist.length > 100) {
     sanbaiArtist = "Unknown";
 }
 
+let sanbaiBpm = "Unknown";
+
+const bpmMatch = songDetailText.match(
+    /BPM\s*([0-9]+(?:\.[0-9]+)?(?:\s*[-~～]\s*[0-9]+(?:\.[0-9]+)?)?)/
+);
+
+if (bpmMatch) {
+    sanbaiBpm = bpmMatch[1].replace(/\s+/g, "");
+}
+
 const sanbaiDifficulties = [
     { name: "Beginner", type: "Single", icon: "🟦", index: 0 },
     { name: "Basic", type: "Single", icon: "🟧", index: 1 },
@@ -875,6 +925,11 @@ const embed = new EmbedBuilder()
     inline: true
 },
 {
+    name: "BPM",
+    value: sanbaiBpm,
+    inline: true
+},
+{
     name: "Song/Charts on YouTube",
     value: `[${song.song_name}](${youtubeUrl})`,
     inline: false
@@ -883,6 +938,10 @@ const embed = new EmbedBuilder()
 
 const scoreButtonId = String(scoreButtonCounter++);
 scoreButtonSongs.set(scoreButtonId, song.song_name);
+
+setTimeout(() => {
+    scoreButtonSongs.delete(scoreButtonId);
+}, 60 * 60 * 1000);
 
 const checkScoresButton = new ButtonBuilder()
     .setCustomId(`sanbai_score_song_${scoreButtonId}`)
@@ -901,95 +960,175 @@ await interaction.editReply({
 
 if (interaction.commandName === "random") {
 
-    const response = await axios.get(
-        "https://dp4p6x0xfi5o9.cloudfront.net/ddr/data.json"
-    );
-
-    const songs = response.data.songs;
+    await interaction.deferReply();
 
     const type = interaction.options.getString("type");
-    
     const minLevel = interaction.options.getInteger("min_level");
-    
     const maxLevel = interaction.options.getInteger("max_level");
+
+    let songs;
+
+    try {
+        const response = await axios.get("https://3icecream.com/js/songdata.js");
+        const songDataJs = response.data;
+
+        const songDataMatch = songDataJs.match(/var ALL_SONG_DATA=(\[[\s\S]*?\]);/);
+
+        if (!songDataMatch) {
+            return interaction.editReply("Could not load Sanbai song data.");
+        }
+
+        songs = JSON.parse(songDataMatch[1]);
+    } catch (error) {
+        console.error("Could not load Sanbai song data:", error.message);
+        return interaction.editReply("Could not load Sanbai song data.");
+    }
+
+    const sanbaiDifficulties = [
+        { name: "Beginner", type: "single", chartType: "Single", icon: "🟦", index: 0 },
+        { name: "Basic", type: "single", chartType: "Single", icon: "🟧", index: 1 },
+        { name: "Difficult", type: "single", chartType: "Single", icon: "🟥", index: 2 },
+        { name: "Expert", type: "single", chartType: "Single", icon: "🟩", index: 3 },
+        { name: "Challenge", type: "single", chartType: "Single", icon: "🟪", index: 4 },
+
+        { name: "Basic", type: "double", chartType: "Double", icon: "🟧", index: 5 },
+        { name: "Difficult", type: "double", chartType: "Double", icon: "🟥", index: 6 },
+        { name: "Expert", type: "double", chartType: "Double", icon: "🟩", index: 7 },
+        { name: "Challenge", type: "double", chartType: "Double", icon: "🟪", index: 8 }
+    ];
 
     let allCharts = [];
 
-    songs.forEach(song => {
-        song.sheets.forEach(sheet => {
+    for (const song of songs) {
+        if (song.deleted) continue;
+
+        for (const diff of sanbaiDifficulties) {
+            const level = song.ratings?.[diff.index];
+
+            if (!level) continue;
+
             allCharts.push({
                 song,
-                sheet
+                diff,
+                level: Number(level)
             });
-        });
-    });
+        }
+    }
 
     let charts = allCharts;
 
-if (type) {
-    const mapType = type.toLowerCase() === "double" ? "dbl" : "std";
-    charts = charts.filter(c => c.sheet.type === mapType);
-}
-
-if (minLevel !== null) {
-    charts = charts.filter(c =>
-        Number(c.sheet.level) >= minLevel
-    );
-}
-
-if (maxLevel !== null) {
-    charts = charts.filter(c =>
-        Number(c.sheet.level) <= maxLevel
-    );
-}
-
-if (charts.length === 0) {
-    return interaction.reply("No charts found for that combination.");
-}
-
-const picked = charts[Math.floor(Math.random() * charts.length)];
-
-const song = picked.song;
-const sheet = picked.sheet;
-
-const difficultyRaw = sheet.difficulty.toLowerCase();
-
-const icon = difficultyColors[difficultyRaw] || "⬜";
-
-const difficulty =
-    difficultyRaw.charAt(0).toUpperCase() +
-    difficultyRaw.slice(1);
-
-const chartType = sheet.type === "std" ? "Single" : "Double";
-
-const diffText = sheet.difficulty.toUpperCase();
-
-const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(song.title + " DDR " + diffText + " " + chartType)}`;
-
-const embed = new EmbedBuilder()
-    .setTitle(song.title)
-    .setThumbnail(`https://dp4p6x0xfi5o9.cloudfront.net/ddr/img/cover/${song.imageName}`)
-    .setDescription(`**${chartType} ${icon} ${difficulty}**: ${sheet.level}`)
-    .addFields(
-    {
-        name: "Artist",
-        value: song.artist || "Unknown",
-        inline: true
-    },
-    {
-        name: "Version",
-        value: song.version || "Unknown",
-        inline: true
-    },
-    {
-        name: "Chart on YouTube",
-        value: `[${song.title} ${diffText}](${youtubeUrl})`,
-        inline: false
+    if (type) {
+        charts = charts.filter(chart => chart.diff.type === type);
     }
-);
 
-await interaction.reply({ embeds: [embed] });
+    if (minLevel !== null) {
+        charts = charts.filter(chart => chart.level >= minLevel);
+    }
 
+    if (maxLevel !== null) {
+        charts = charts.filter(chart => chart.level <= maxLevel);
+    }
+
+    if (charts.length === 0) {
+        return interaction.editReply("No charts found for that combination.");
+    }
+
+    const picked = charts[Math.floor(Math.random() * charts.length)];
+
+    const song = picked.song;
+    const diff = picked.diff;
+    const level = picked.level;
+
+    const decimalLevel = await getSanbaiDecimalLevel(song, diff.index);
+
+    const levelText = decimalLevel
+        ? `${level} (${decimalLevel})`
+        : String(level);
+
+    let songDetailText = "";
+
+    try {
+        const detailResponse = await axios.get(
+            `https://3icecream.com/ddr/song_details/${song.song_id}`
+        );
+
+        songDetailText = detailResponse.data
+            .replace(/<[^>]*>/g, " ")
+            .replace(/&nbsp;/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    } catch (error) {
+        console.error("Could not load Sanbai song detail page:", error.message);
+    }
+
+    let sanbaiArtist = "Unknown";
+
+    const bpmIndex = songDetailText.indexOf("BPM");
+
+    if (bpmIndex !== -1) {
+        const beforeBpm = songDetailText.slice(0, bpmIndex);
+        const titleIndex = beforeBpm.lastIndexOf(song.song_name);
+
+        if (titleIndex !== -1) {
+            sanbaiArtist = beforeBpm
+                .slice(titleIndex + song.song_name.length)
+                .trim();
+        }
+    }
+
+    if (!sanbaiArtist || sanbaiArtist.length > 100) {
+        sanbaiArtist = "Unknown";
+    }
+
+    let sanbaiBpm = "Unknown";
+
+    const bpmMatch = songDetailText.match(
+        /BPM\s*([0-9]+(?:\.[0-9]+)?(?:\s*[-~～]\s*[0-9]+(?:\.[0-9]+)?)?)/
+    );
+
+    if (bpmMatch) {
+        sanbaiBpm = bpmMatch[1].replace(/\s+/g, "");
+    }
+
+    const diffText = diff.name.toUpperCase();
+
+    const youtubeUrl =
+        `https://www.youtube.com/results?search_query=${
+            encodeURIComponent(
+                `${song.song_name} DDR ${diffText} ${diff.chartType}`
+            )
+        }`;
+
+    const embed = new EmbedBuilder()
+        .setTitle(song.song_name)
+        .setThumbnail(`https://3icecream.com/img/banners/${song.song_id}.jpg`)
+        .setDescription(`**${diff.chartType} ${diff.icon} ${diff.name}**: ${levelText}`)
+        .addFields(
+            {
+                name: "Artist",
+                value: sanbaiArtist || "Unknown",
+                inline: true
+            },
+            {
+                name: "Version",
+                value: `${sanbaiVersionNames[song.version_num] || String(song.version_num ?? "Unknown")} (${getSanbaiEra(song.version_num)})`,
+                inline: true
+            },
+            {
+                name: "BPM",
+                value: sanbaiBpm,
+                inline: true
+            },
+            {
+                name: "Chart on YouTube",
+                value: `[${song.song_name} ${diffText}](${youtubeUrl})`,
+                inline: false
+            }
+        );
+
+    await interaction.editReply({
+        embeds: [embed]
+    });
 }
 
 if (interaction.commandName === "add-alias") {
@@ -1015,7 +1154,8 @@ if (interaction.commandName === "add-alias") {
             `New alias submitted!\n\n` +
             `Song: **${song}**\n` +
             `Alias: **${alias}**\n` +
-            `Submitted by: **${interaction.user.username}** (${interaction.user.id})`
+            `Submitted by: **${interaction.user.username}** (${interaction.user.id})\n\n` +
+            `https://kw0gphdw-3000.aue.devtunnels.ms/aliases`
         );
     } catch (error) {
         console.error("Could not DM alias submission:", error.message);
@@ -1102,6 +1242,16 @@ if (!sanbaiArtist || sanbaiArtist.length > 100) {
     sanbaiArtist = "Unknown";
 }
 
+let sanbaiBpm = "Unknown";
+
+const bpmMatch = songDetailText.match(
+    /BPM\s*([0-9]+(?:\.[0-9]+)?(?:\s*[-~～]\s*[0-9]+(?:\.[0-9]+)?)?)/
+);
+
+if (bpmMatch) {
+    sanbaiBpm = bpmMatch[1].replace(/\s+/g, "");
+}
+
     const icon =
     difficultyColors[difficulty.toLowerCase()] || "⬜";
 
@@ -1136,6 +1286,12 @@ if (!level) {
     return interaction.editReply("That chart does not exist for this song.");
 }
 
+const decimalLevel = await getSanbaiDecimalLevel(song, difficultyIndex);
+
+const levelText = decimalLevel
+    ? `${level} (${decimalLevel})`
+    : level;
+
 const diffText = difficulty.toUpperCase();
 
     const youtubeUrl =
@@ -1151,8 +1307,8 @@ const diffText = difficulty.toUpperCase();
         `https://3icecream.com/img/banners/${song.song_id}.jpg`
     )
     .setDescription(
-        `**${chartType} ${icon} ${diffText}**: ${level}`
-    )
+    `**${chartType} ${icon} ${diffText}**: ${levelText}`
+)
         .addFields(
 {
     name: "Artist",
@@ -1162,6 +1318,11 @@ const diffText = difficulty.toUpperCase();
 {
     name: "Version",
     value: `${sanbaiVersionNames[song.version_num] || String(song.version_num ?? "Unknown")} (${getSanbaiEra(song.version_num)})`,
+    inline: true
+},
+{
+    name: "BPM",
+    value: sanbaiBpm,
     inline: true
 },
 {
@@ -1176,7 +1337,6 @@ const diffText = difficulty.toUpperCase();
 });
 
 }
-
 
 if (interaction.commandName === "farm") {
 
@@ -1224,8 +1384,8 @@ const flareEmojis = flareRatings.emojis;
     }
 
     await interaction.reply(
-    `To achieve **${target}** (${targetRank.name} ${ranks.emojis[targetRank.name]}) flare rating across your top 90,\n` +
-    `You would need to average:\n\n` +
+    `To achieve **${target}** (${targetRank.name} ${ranks.emojis[targetRank.name]}) Flare Rating across your top 90, you would need to average: **${average}** Flare Rating.\n\n` +
+    `You could achieve this with:\n\n` +
     results.join("\n")
 );
 
@@ -1239,15 +1399,35 @@ if (interaction.commandName === "flarerating") {
 
 const flareMap = {
     "0": 0,
+
+    "1": 1,
     "I": 1,
+
+    "2": 2,
     "II": 2,
+
+    "3": 3,
     "III": 3,
+
+    "4": 4,
     "IV": 4,
+
+    "5": 5,
     "V": 5,
+
+    "6": 6,
     "VI": 6,
+
+    "7": 7,
     "VII": 7,
+
+    "8": 8,
     "VIII": 8,
+
+    "9": 9,
     "IX": 9,
+
+    "10": 10,
     "EX": 10
 };
 
@@ -1405,14 +1585,19 @@ const searchName = aliasTitle || title;
 
         if (song) {
             const difficultyIndex = difficultyMap[difficulty.toLowerCase()];
-            const sanbaiLevel = song.ratings[difficultyIndex] || level;
+const sanbaiLevel = song.ratings[difficultyIndex] || level;
+const decimalLevel = await getSanbaiDecimalLevel(song, difficultyIndex);
 
-            const sanbaiArtist = await getSanbaiArtist(song);
+const levelText = decimalLevel
+    ? `${sanbaiLevel} (${decimalLevel})`
+    : sanbaiLevel;
+
+const sanbaiArtist = await getSanbaiArtist(song);
 
             embed
-                .setDescription(
-                    `${icon} **${song.song_name}**\n${difficulty} ${sanbaiLevel}`
-                )
+    .setDescription(
+        `${icon} **${song.song_name}**\n${difficulty} ${levelText}`
+    )
                 .setThumbnail(
                     `https://3icecream.com/img/banners/${song.song_id}.jpg`
                 );
@@ -1464,19 +1649,24 @@ if (interaction.commandName === "sanbai-login") {
             "When you're done, press **Next**."
         );
 
-    const button = new ButtonBuilder()
-        .setCustomId("sanbai_login_next")
-        .setLabel("Next")
-        .setStyle(ButtonStyle.Primary);
+    const nextButton = new ButtonBuilder()
+    .setCustomId("sanbai_login_next")
+    .setLabel("Next")
+    .setStyle(ButtonStyle.Primary);
 
-    const row = new ActionRowBuilder()
-        .addComponents(button);
+const logoutButton = new ButtonBuilder()
+    .setCustomId("sanbai_login_logout")
+    .setLabel("Log Out")
+    .setStyle(ButtonStyle.Danger);
 
-    await interaction.reply({
-        embeds: [embed],
-        components: [row],
-        ephemeral: true
-    });
+const row = new ActionRowBuilder()
+    .addComponents(nextButton, logoutButton);
+
+await interaction.reply({
+    embeds: [embed],
+    components: [row],
+    ephemeral: true
+});
 }
 
 if (interaction.commandName === "sanbai-profile") {
@@ -1611,7 +1801,7 @@ const embed = new EmbedBuilder()
         }
     )
     .setFooter({
-        text: "Data from Sanbai Ice Cream"
+        text: "Data pulled from Sanbai Ice Cream"
     });
 
 const singlesButton = new ButtonBuilder()
@@ -1803,36 +1993,6 @@ await interaction.reply(
     `**Please note this result may not be accurate to Floating Flare**`
 );
 
-}
-
-if (interaction.commandName === "sanbai-logout") {
-
-const discordId = interaction.user.id;
-
-reloadSanbaiAccounts();
-
-if (!sanbaiAccounts[discordId]) {
-        return interaction.reply({
-            content: "You do not have a linked Sanbai Ice Cream account.",
-            ephemeral: true
-        });
-    }
-
-    const oldUsername = sanbaiAccounts[discordId];
-
-    delete sanbaiAccounts[discordId];
-
-    const fileContent =
-        "module.exports = " +
-        JSON.stringify(sanbaiAccounts, null, 4) +
-        ";\n";
-
-    fs.writeFileSync("./js/sanbai-accounts.js", fileContent);
-
-    await interaction.reply({
-        content: `Unlinked your Sanbai Ice Cream account: **${oldUsername}**`,
-        ephemeral: true
-    });
 }
 
 });

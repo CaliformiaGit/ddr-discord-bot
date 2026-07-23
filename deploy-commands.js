@@ -83,11 +83,13 @@ new SlashCommandBuilder()
         option.setName("song")
             .setDescription("Song title (HAS TO BE EXACT)")
             .setRequired(true)
+            .setMaxLength(50)
     )
     .addStringOption(option =>
         option.setName("alias")
             .setDescription("What should this song be known as?")
             .setRequired(true)
+            .setMaxLength(50)
     ),
 
 new SlashCommandBuilder()
@@ -218,6 +220,7 @@ new SlashCommandBuilder()
             .setDescription("Number of PERFECTs")
             .setRequired(true)
             .setMinValue(0)
+            .setMaxValue(9999)
     )
     .addIntegerOption(option =>
         option
@@ -225,6 +228,7 @@ new SlashCommandBuilder()
             .setDescription("Number of GREATs")
             .setRequired(true)
             .setMinValue(0)
+            .setMaxValue(9999)
     )
     .addIntegerOption(option =>
         option
@@ -232,6 +236,7 @@ new SlashCommandBuilder()
             .setDescription("Number of GOODs")
             .setRequired(true)
             .setMinValue(0)
+            .setMaxValue(9999)
     )
     .addIntegerOption(option =>
         option
@@ -239,12 +244,9 @@ new SlashCommandBuilder()
             .setDescription("Number of MISSes")
             .setRequired(true)
             .setMinValue(0)
+            .setMaxValue(9999)
     ),
-
-    new SlashCommandBuilder()
-    .setName("sanbai-logout")
-    .setDescription("Unlinks your Sanbai Ice Cream account"),
-
+    
 ];
 
 const commandData = commands.map(command => command.toJSON());
