@@ -8,6 +8,21 @@ const ranks = require("./js/flare-ranks");
 let sanbaiAccounts = require("./js/sanbai-accounts");
 const { scoreRankEmojis, getScoreGrade } = require("./js/score-ranks");
 
+//fetch sanbai shi
+let songDataCache = { data: null, time: 0 };
+const SONG_DATA_TTL = 10 * 60 * 10000;
+//fetch sanbai shi
+async function getAllSongs() {
+    if (songDataCache.data && Date.now() - songDataCache.time < SONG_DATA_TTL) {
+        return songDataCache.data;
+    }
+    const response = await axios.get("https://3icecream.com/js/songdata.js");
+    const match = response.data.match(/var ALL_SONG_DATA=(\[[\s\S]*?\]);/);
+    if (!match) throw new Error("Could not load Sanbai song data.");
+    songDataCache = { data: JSON.parse(match[1]), time: Date.now() };
+    return songDataCache.data;
+}
+
 function reloadSanbaiAccounts() {
     delete require.cache[require.resolve("./js/sanbai-accounts")];
     sanbaiAccounts = require("./js/sanbai-accounts");
@@ -249,19 +264,17 @@ async function buildSanbaiTopEmbed(username, type, category) {
 
     const compressedScoreData = JSON.parse(scoreDataMatch[1]);
 
-    const songDataResponse = await axios.get("https://3icecream.com/js/songdata.js");
-    const songDataJs = songDataResponse.data;
+    let allSongs;
 
-    const songDataMatch = songDataJs.match(/var ALL_SONG_DATA=(\[[\s\S]*?\]);/);
-
-    if (!songDataMatch) {
+    try {
+        allSongs = await getAllSongs();
+    } catch (error) {
+        console.error("Could not load Sanbai song data:", error.message);
         const embed = new EmbedBuilder()
             .setTitle("Could not load Sanbai song data.");
 
         return { embed };
     }
-
-    const allSongs = JSON.parse(songDataMatch[1]);
 
     const charts = [];
 
@@ -398,19 +411,17 @@ async function buildSanbaiScoreEmbed(username, songSearch) {
     const response = await axios.get(profileUrl);
     html = response.data;
 
-    const songDataResponse = await axios.get("https://3icecream.com/js/songdata.js");
-    const songDataJs = songDataResponse.data;
+    let allSongs;
 
-    const songDataMatch = songDataJs.match(/var ALL_SONG_DATA=(\[[\s\S]*?\]);/);
-
-    if (!songDataMatch) {
+    try {
+        allSongs = await getAllSongs();
+    } catch (error) {
+        console.error("Could not load Sanbai song data:", error.message);
         const embed = new EmbedBuilder()
             .setTitle("Could not load Sanbai song data.");
 
         return { embed };
     }
-
-    const allSongs = JSON.parse(songDataMatch[1]);
 
     const searchLower = songSearch.toLowerCase();
 
@@ -787,22 +798,20 @@ if (interaction.commandName === "info") {
 
     await interaction.deferReply();
 
-    const songName = interaction.options.getString("song");
+  const songName = interaction.options.getString("song");
 
-reloadAliases();
+    reloadAliases();
 
-const aliasTitle = aliases[songName.toLowerCase()];
+    const aliasTitle = aliases[songName.toLowerCase()];
+    
+let songs;
 
-const response = await axios.get("https://3icecream.com/js/songdata.js");
-const songDataJs = response.data;
-
-const songDataMatch = songDataJs.match(/var ALL_SONG_DATA=(\[[\s\S]*?\]);/);
-
-if (!songDataMatch) {
+try {
+    songs = await getAllSongs();
+} catch (error) {
+    console.error("Could not load Sanbai song data:", error.message);
     return interaction.editReply("Could not load Sanbai song data.");
 }
-
-const songs = JSON.parse(songDataMatch[1]);
 
 
 
@@ -969,16 +978,7 @@ if (interaction.commandName === "random") {
     let songs;
 
     try {
-        const response = await axios.get("https://3icecream.com/js/songdata.js");
-        const songDataJs = response.data;
-
-        const songDataMatch = songDataJs.match(/var ALL_SONG_DATA=(\[[\s\S]*?\]);/);
-
-        if (!songDataMatch) {
-            return interaction.editReply("Could not load Sanbai song data.");
-        }
-
-        songs = JSON.parse(songDataMatch[1]);
+        songs = await getAllSongs();
     } catch (error) {
         console.error("Could not load Sanbai song data:", error.message);
         return interaction.editReply("Could not load Sanbai song data.");
@@ -1178,16 +1178,14 @@ reloadAliases();
 
 const aliasTitle = aliases[songName.toLowerCase()];
 
-    const response = await axios.get("https://3icecream.com/js/songdata.js");
-const songDataJs = response.data;
+    let songs;
 
-const songDataMatch = songDataJs.match(/var ALL_SONG_DATA=(\[[\s\S]*?\]);/);
-
-if (!songDataMatch) {
-    return interaction.editReply("Could not load Sanbai song data.");
-}
-
-const songs = JSON.parse(songDataMatch[1]);
+    try {
+        songs = await getAllSongs();
+    } catch (error) {
+        console.error("Could not load Sanbai song data:", error.message);
+        return interaction.editReply("Could not load Sanbai song data.");
+    }
 
     const searchName = aliasTitle || songName;
 const searchLower = searchName.toLowerCase();
