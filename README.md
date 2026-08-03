@@ -39,24 +39,26 @@ Score Tracking using https://3icecream.com/
 
 ### --- GOALS ---
 
-● Add Ability to search for songs
+✅ Add Ability to search for songs
 
-● Add Ability to get a random song
+✅ Add Ability to get a random song
 
-● Improve Random song feature (search by chart type and level)
+✅ Improve Random song feature (search by chart type and level)
 
-● Improve song searching (roomaji, nicknames, ui, etc.)
+✅ Improve song searching (roomaji, nicknames, ui, etc.)
 
-● Add a dan course searching feature
+✅ Add a dan course searching feature
 
-● Add a feature to search charts on youtube
+✅ Add a feature to search charts on youtube
 
-● Add a total flare rating calculator
+✅ Add a total flare rating calculator
 
-● Add a level flare rating calculator
+✅ Add a level flare rating calculator
 
-● Add Sanbai Ice Cream score saving support
+✅ Add Sanbai Ice Cream score saving support
 
-● Add Emojis to make it look better
+✅ Add Emojis to make it look better
 
-● Add a flare calculator for figuring out what flare you can clear a chart with
+✅ Add a flare calculator for figuring out what flare you can clear a chart with
+
+❎ Add a different way to link scores
